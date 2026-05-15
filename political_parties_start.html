@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Рейтинги политических партий</title>
+    <script src="political_parties_payload_2.js"></script>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #0b1220;
+        --panel: #101a2f;
+        --text: #e6edf7;
+        --muted: #9bb0d0;
+        --border: rgba(255, 255, 255, 0.12);
+        --accent: #7aa2ff;
+      }
+
+      html,
+      body {
+        height: 100%;
+      }
+
+      body {
+        margin: 0;
+        font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+        background: radial-gradient(1200px 700px at 10% -10%, rgba(122, 162, 255, 0.22), transparent 60%),
+          radial-gradient(900px 600px at 110% 20%, rgba(122, 162, 255, 0.15), transparent 55%),
+          var(--bg);
+        color: var(--text);
+      }
+
+      .wrap {
+        min-height: 100%;
+        display: grid;
+        place-items: center;
+        padding: 18px;
+        box-sizing: border-box;
+      }
+
+      .card {
+        width: min(520px, 100%);
+        background: rgba(16, 26, 47, 0.92);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 16px;
+        box-shadow: 0 18px 60px rgba(0, 0, 0, 0.45);
+        backdrop-filter: blur(10px);
+      }
+
+      h1 {
+        margin: 0 0 6px;
+        font-size: 16px;
+        font-weight: 700;
+        letter-spacing: 0.2px;
+      }
+
+      p {
+        margin: 0 0 14px;
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.35;
+      }
+
+      .buttons {
+        display: grid;
+        gap: 10px;
+      }
+
+      button {
+        -webkit-tap-highlight-color: transparent;
+        border: 1px solid var(--border);
+        background: rgba(255, 255, 255, 0.06);
+        color: var(--text);
+        border-radius: 14px;
+        padding: 12px 12px;
+        cursor: pointer;
+        text-align: left;
+      }
+
+      button:hover {
+        border-color: rgba(255, 255, 255, 0.22);
+      }
+
+      .t {
+        font-weight: 700;
+        margin-bottom: 2px;
+      }
+
+      .d {
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.25;
+      }
+
+      .row {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+      }
+
+      .badge {
+        font-size: 12px;
+        color: rgba(255, 255, 255, 0.92);
+        background: rgba(122, 162, 255, 0.14);
+        border: 1px solid rgba(122, 162, 255, 0.32);
+        border-radius: 999px;
+        padding: 6px 10px;
+        white-space: nowrap;
+      }
+
+      .footer {
+        margin-top: 12px;
+        color: rgba(230, 237, 247, 0.72);
+        font-size: 12px;
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+
+      a {
+        color: var(--accent);
+        text-decoration: none;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="card">
+        <div class="row" style="justify-content: space-between; margin-bottom: 10px">
+          <h1>Рейтинги политических партий</h1>
+          <div class="badge" id="badge">—</div>
+        </div>
+        <p>Выберите режим (каждый раз при открытии страницы).</p>
+        <div class="buttons">
+          <button id="mobileBtn" type="button">
+            <div class="t">Мобильная</div>
+            <div class="d">Оптимизировано для телефона и Telegram. В портретной ориентации интерфейс поворачивается “как горизонтально”.</div>
+          </button>
+          <button id="desktopBtn" type="button">
+            <div class="t">Десктоп</div>
+            <div class="d">Классическая страница с панелями. Подходит для компьютера/большого экрана.</div>
+          </button>
+        </div>
+        <div class="footer">
+          <span id="hint">Подсказка: на телефоне обычно удобнее “Мобильная”.</span>
+          <a href="political_parties_start.html" id="reload">Показать выбор</a>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const badge = document.getElementById("badge");
+      const hint = document.getElementById("hint");
+
+      function isPhoneLike() {
+        const narrow = Math.min(window.innerWidth, window.innerHeight) <= 520;
+        const coarse = window.matchMedia && window.matchMedia("(pointer: coarse)").matches;
+        return narrow || coarse;
+      }
+
+      function setBadge(text) {
+        badge.textContent = text;
+      }
+
+      function go(mode) {
+        const url = mode === "mobile" ? "political_parties_mobile.html" : "political_parties.html";
+        const u = new URL(url, window.location.href);
+        // Cache-bust for GitHub Pages / Telegram WebView caching behavior
+        u.searchParams.set("v", String(Date.now()));
+        window.location.replace(u.toString());
+      }
+
+      const recommended = isPhoneLike() ? "mobile" : "desktop";
+      setBadge(recommended === "mobile" ? "Рекомендуем: мобильная" : "Рекомендуем: десктоп");
+      hint.textContent = recommended === "mobile"
+        ? "Подсказка: для телефона и Telegram обычно лучше “Мобильная”."
+        : "Подсказка: на компьютере обычно лучше “Десктоп”.";
+
+      try {
+        const v = window.POLITICAL_PARTIES_PAYLOAD_2_VERSION;
+        if (v) {
+          setBadge((recommended === "mobile" ? "Рекомендуем: мобильная" : "Рекомендуем: десктоп") + " · данные по " + v);
+        }
+      } catch {}
+
+      document.getElementById("mobileBtn").addEventListener("click", () => go("mobile"));
+      document.getElementById("desktopBtn").addEventListener("click", () => go("desktop"));
+    </script>
+  </body>
+</html>
