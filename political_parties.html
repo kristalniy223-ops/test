@@ -1,0 +1,389 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Рейтинги политических партий</title>
+    <script src="plotly-2.30.0.min.js" onerror="(function(){var s=document.createElement('script');s.src='https://cdn.plot.ly/plotly-2.30.0.min.js';document.head.appendChild(s);})();"></script>
+    <script src="political_parties_payload_2.js"></script>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #0b1220;
+        --panel: #101a2f;
+        --text: #e6edf7;
+        --muted: #9bb0d0;
+        --border: rgba(255,255,255,.12);
+        --accent: #7aa2ff;
+      }
+      body {
+        margin: 0;
+        font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+      }
+      header {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        background: linear-gradient(180deg, rgba(16,26,47,.98), rgba(16,26,47,.92));
+        border-bottom: 1px solid var(--border);
+        padding: 12px 14px;
+        display: flex;
+        gap: 12px;
+        align-items: center;
+      }
+      header h1 {
+        font-size: 14px;
+        margin: 0;
+        font-weight: 600;
+        letter-spacing: .2px;
+        white-space: nowrap;
+      }
+      .grow { flex: 1; }
+      .row {
+        display: grid;
+        grid-template-columns: 320px 1fr;
+        gap: 12px;
+        padding: 12px;
+      }
+      @media (max-width: 980px) {
+        .row { grid-template-columns: 1fr; }
+      }
+      .panel {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        overflow: hidden;
+      }
+      .panel .hd {
+        padding: 10px 12px;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+      .panel .hd .title {
+        font-weight: 600;
+        font-size: 13px;
+      }
+      .panel .bd { padding: 10px 12px; }
+      input[type="text"] {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 8px 10px;
+        border-radius: 10px;
+        border: 1px solid var(--border);
+        background: rgba(255,255,255,.04);
+        color: var(--text);
+        outline: none;
+      }
+      input[type="text"]::placeholder { color: rgba(230,237,247,.55); }
+      button {
+        border: 1px solid var(--border);
+        background: rgba(255,255,255,.06);
+        color: var(--text);
+        border-radius: 10px;
+        padding: 8px 10px;
+        cursor: pointer;
+      }
+      button:hover { border-color: rgba(255,255,255,.22); }
+      .list {
+        max-height: 60vh;
+        overflow: auto;
+        padding-right: 4px;
+      }
+      .item {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        padding: 8px 6px;
+        border-bottom: 1px solid rgba(255,255,255,.06);
+      }
+      .item:last-child { border-bottom: 0; }
+      .item label {
+        cursor: pointer;
+        user-select: none;
+        line-height: 1.2;
+      }
+      .muted { color: var(--muted); font-size: 12px; }
+      .kv {
+        display: grid;
+        grid-template-columns: 90px 1fr;
+        gap: 6px 10px;
+        font-size: 13px;
+        align-items: baseline;
+      }
+      .kv .k { color: var(--muted); }
+      #chart {
+        height: calc(100vh - 120px);
+        min-height: 520px;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Интерактивные рейтинги (zoom/pan, подсветка, клики по точкам)</h1>
+      <div class="grow"></div>
+      <button id="resetViewBtn" title="Сбросить масштаб и выделения">Сброс</button>
+    </header>
+
+    <div class="row">
+      <div class="panel">
+        <div class="hd">
+          <div class="title">Партии</div>
+        </div>
+        <div class="bd">
+          <input id="search" type="text" placeholder="Поиск по названию..." />
+          <div style="height:10px"></div>
+          <div class="muted">Отмеченные партии — яркие, остальные — полупрозрачные.</div>
+          <div style="height:10px"></div>
+          <div id="partyList" class="list"></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="hd">
+          <div class="title">График</div>
+          <div class="grow"></div>
+          <div class="muted" style="margin-right:6px">Ось Y:</div>
+          <button id="yZoomOutBtn" title="Увеличить диапазон Y (показать выше/ниже)">Y−</button>
+          <button id="yZoomInBtn" title="Уменьшить диапазон Y (сжать по вертикали)">Y+</button>
+          <button id="yFitBtn" title="Подогнать Y под видимый X-диапазон">Y Fit</button>
+          <button id="yAutoBtn" title="Автоматический масштаб Y">Y Auto</button>
+          <div class="muted">Колесо мыши: масштаб. Перетаскивание: панорама.</div>
+        </div>
+        <div class="bd" style="padding:0">
+          <div id="chart"></div>
+        </div>
+        <div class="bd">
+          <div class="muted" style="margin-bottom:8px">Клик по точке показывает значение:</div>
+          <div class="kv">
+            <div class="k">Партия</div><div id="clickedParty">—</div>
+            <div class="k">Дата</div><div id="clickedDate">—</div>
+            <div class="k">Значение</div><div id="clickedValue">—</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const payload = window.POLITICAL_PARTIES_PAYLOAD_2;
+      if (!payload) {
+        document.body.innerHTML =
+          '<div style="padding:16px;font-family:system-ui;color:#fff">Не найден файл данных <code>political_parties_payload_2.js</code>.</div>';
+        throw new Error("POLITICAL_PARTIES_PAYLOAD_2 missing");
+      }
+
+      function colorForParty(name) {
+        const m = {
+          "КПРФ": "#e53935",
+          "ЛДПР": "#42a5f5",
+          "«Справедливая Россия»": "#fb8c00",
+          "«Новые Люди»": "#26c6da",
+        };
+        return m[name] || null;
+      }
+
+      function formatRuDate(iso) {
+        try {
+          // Use UTC midnight to avoid local timezone shifts.
+          const d = new Date(String(iso) + "T00:00:00Z");
+          if (Number.isNaN(d.getTime())) return String(iso);
+          return new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "long", year: "numeric" }).format(d);
+        } catch {
+          return String(iso);
+        }
+      }
+
+      function initWhenPlotlyReady() {
+        if (!window.Plotly) {
+          setTimeout(initWhenPlotlyReady, 50);
+          return;
+        }
+        init();
+      }
+
+      function init() {
+        const dates = payload.dates;
+        const hoverDates = dates.map(formatRuDate);
+        const partyNames = Object.keys(payload.series);
+
+        const traces = partyNames.map((name) => ({
+          type: "scatter",
+          mode: "lines+markers",
+          name,
+          x: dates,
+          y: payload.series[name],
+          customdata: hoverDates,
+          connectgaps: false,
+          line: { width: 2, color: colorForParty(name) || undefined },
+          marker: { size: 5, color: colorForParty(name) || undefined },
+          opacity: 1,
+          hovertemplate: "%{customdata}<br>%{fullData.name}: %{y}%<extra></extra>",
+        }));
+
+        const layout = {
+          paper_bgcolor: "rgba(0,0,0,0)",
+          plot_bgcolor: "rgba(0,0,0,0)",
+          dragmode: "pan",
+          hovermode: "closest",
+          margin: { l: 70, r: 20, t: 10, b: 50 },
+          xaxis: {
+            type: "date",
+            showgrid: true,
+            gridcolor: "rgba(255,255,255,.08)",
+            zeroline: false,
+            rangeslider: { visible: true, thickness: 0.08 },
+          },
+          yaxis: {
+            title: "{% от опрошенных}",
+            showgrid: true,
+            gridcolor: "rgba(255,255,255,.08)",
+            rangemode: "tozero",
+            zeroline: false,
+            fixedrange: false,
+          },
+          legend: {
+            orientation: "h",
+            y: 1.02,
+            x: 0,
+            font: { color: "#e6edf7" },
+          },
+          font: { color: "#e6edf7" },
+        };
+
+        const config = {
+          responsive: true,
+          scrollZoom: true,
+          displaylogo: false,
+        };
+
+        const chartDiv = document.getElementById("chart");
+        Plotly.newPlot(chartDiv, traces, layout, config);
+
+        // UI: party checklist
+        const partyList = document.getElementById("partyList");
+        const selected = new Set();
+
+        function renderPartyList(filterText) {
+          const f = (filterText || "").trim().toLowerCase();
+          partyList.innerHTML = "";
+          for (const name of partyNames) {
+            if (f && !name.toLowerCase().includes(f)) continue;
+            const id = "p_" + name.replace(/\W+/g, "_");
+            const row = document.createElement("div");
+            row.className = "item";
+            row.innerHTML = `
+              <input type="checkbox" id="${id}" ${selected.has(name) ? "checked" : ""} />
+              <label for="${id}">${name}</label>
+            `;
+            row.querySelector("input").addEventListener("change", (e) => {
+              if (e.target.checked) selected.add(name);
+              else selected.delete(name);
+              applySelection();
+            });
+            partyList.appendChild(row);
+          }
+        }
+
+        function applySelection() {
+          const has = selected.size > 0;
+          const opacities = partyNames.map((n) => (has ? (selected.has(n) ? 1 : 0.15) : 1));
+          const widths = partyNames.map((n) => (has ? (selected.has(n) ? 3 : 1) : 2));
+          const markerSizes = partyNames.map((n) => (has ? (selected.has(n) ? 6 : 4) : 5));
+          Plotly.restyle(chartDiv, {
+            opacity: opacities,
+            "line.width": widths,
+            "marker.size": markerSizes,
+          });
+        }
+
+        function _fullXRange() {
+          const r = chartDiv?._fullLayout?.xaxis?.range;
+          if (!r || r.length !== 2) return null;
+          const a = String(r[0]).slice(0, 10);
+          const b = String(r[1]).slice(0, 10);
+          if (a.length !== 10 || b.length !== 10) return null;
+          return [a, b];
+        }
+
+        function yAuto() {
+          return Plotly.relayout(chartDiv, { "yaxis.autorange": true });
+        }
+
+        function yZoom(factor) {
+          const yr = chartDiv?._fullLayout?.yaxis?.range;
+          if (!yr || yr.length !== 2) return yAuto();
+          const curMax = Number(yr[1]);
+          if (!Number.isFinite(curMax) || curMax <= 0) return yAuto();
+          const nextMax = Math.max(1, curMax * factor);
+          return Plotly.relayout(chartDiv, { "yaxis.range": [0, nextMax], "yaxis.autorange": false });
+        }
+
+        function yFit() {
+          const xr = _fullXRange();
+          const [x0, x1] = xr ?? [dates[0], dates[dates.length - 1]];
+          const lo = x0 <= x1 ? x0 : x1;
+          const hi = x0 <= x1 ? x1 : x0;
+
+          const names = (selected.size > 0) ? Array.from(selected) : partyNames;
+          let maxY = null;
+          for (let i = 0; i < dates.length; i++) {
+            const d = dates[i];
+            if (d < lo || d > hi) continue;
+            for (const n of names) {
+              const v = payload.series[n][i];
+              if (v === null || v === undefined) continue;
+              const num = Number(v);
+              if (!Number.isFinite(num)) continue;
+              if (maxY === null || num > maxY) maxY = num;
+            }
+          }
+
+          if (maxY === null) return yAuto();
+          let padded = maxY * 1.08;
+          const step = padded <= 10 ? 0.5 : 1.0;
+          padded = Math.ceil(padded / step) * step;
+          padded = Math.max(1, padded);
+          return Plotly.relayout(chartDiv, { "yaxis.range": [0, padded], "yaxis.autorange": false });
+        }
+
+        document.getElementById("search").addEventListener("input", (e) => {
+          renderPartyList(e.target.value);
+        });
+
+        document.getElementById("yAutoBtn").addEventListener("click", yAuto);
+        document.getElementById("yFitBtn").addEventListener("click", yFit);
+        document.getElementById("yZoomOutBtn").addEventListener("click", () => yZoom(1.25));
+        document.getElementById("yZoomInBtn").addEventListener("click", () => yZoom(1 / 1.25));
+
+        document.getElementById("resetViewBtn").addEventListener("click", async () => {
+          selected.clear();
+          renderPartyList(document.getElementById("search").value);
+          applySelection();
+          await Plotly.relayout(chartDiv, {
+            "xaxis.autorange": true,
+            "yaxis.autorange": true,
+          });
+        });
+
+        // Click handler: show exact point value
+        chartDiv.on("plotly_click", (ev) => {
+          const p = ev?.points?.[0];
+          if (!p) return;
+          document.getElementById("clickedParty").textContent = p.fullData?.name ?? "—";
+          document.getElementById("clickedDate").textContent = p.x ?? "—";
+          document.getElementById("clickedValue").textContent =
+            (p.y === null || p.y === undefined) ? "—" : String(p.y);
+        });
+
+        renderPartyList("");
+      }
+
+      initWhenPlotlyReady();
+    </script>
+  </body>
+</html>
+
+
